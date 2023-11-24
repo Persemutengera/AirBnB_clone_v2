@@ -1,28 +1,22 @@
 #!/usr/bin/env bash
-# This script configure my server for webstatic
+# Set up server file system for deployment
 
-# validate if exists nginx
-if [[ ! -x /usr/sbin/nginx ]]; then
-    sudo apt-get -y update
-    sudo apt-get -y install nginx
-fi
+# install nginx
+sudo apt-get -y update
+sudo apt-get -y install nginx
+sudo service nginx start
 
-# create directories and file
-sudo mkdir -p /data/web_static/releases/test
-sudo mkdir -p /data/web_static/shared
-#create file for test
-index_page="<html>\n\t<head>\n\t</head>\n\t<body>\n\t\tHolberton School\n\t</body>\n</html>"
-echo -e "$index_page" | sudo tee /data/web_static/releases/test/index.html > /dev/null
-# create symbolic links
-symln=/data/web_static/current
-if [ -L $symln ]
-then
-	sudo unlink /data/web_static/current
-fi
-sudo ln -snf /data/web_static/releases/test/ /data/web_static/current
-# change user and group 
-sudo  chown -R ubuntu:ubuntu /data/
-# modify nginx configuration to server static content
-location="\n\tlocation /hbnb_static/ {\n\t\talias /data/web_static/current/;\n\t}\n"
-sudo sed -i "37i\ $location" /etc/nginx/sites-available/default
+# configure file system
+sudo mkdir -p /data/web_static/shared/
+sudo mkdir -p /data/web_static/releases/test/
+echo "Holberton School" | sudo tee /data/web_static/releases/test/index.html > /dev/null
+sudo ln -sf /data/web_static/releases/test/ /data/web_static/current
+
+# set permissions
+sudo chown -R ubuntu:ubuntu /data/
+
+# configure nginx
+sudo sed -i '44i \\n\tlocation /hbnb_static {\n\t\talias /data/web_static/current/;\n\t}' /etc/nginx/sites-available/default
+
+# restart web server
 sudo service nginx restart
