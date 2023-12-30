@@ -1,41 +1,52 @@
 #!/usr/bin/python3
-""" This script generate .tgz from the contents of the web_static
 """
-from fabric.api import local, run, cd, put, env
+Fabric script that distributes an archive to your web servers
+"""
 
-env.hosts = ['34.73.255.16', '34.74.104.239']
+from datetime import datetime
+from fabric.api import *
+import os
+
+env.hosts = ["44.210.150.159", "35.173.47.15"]
 env.user = "ubuntu"
 
 
 def do_pack():
-    """ Create a tar gz file
-
     """
-    local("mkdir -p ./versions")
-    comp = local(
-        "tar -cvzf versions/web_static_$(date '+%Y%m%d%H%M%S').tgz web_static")
+        return the archive path if archive has generated correctly.
+    """
 
-    if (comp.succeeded):
-        return local(
-            "echo \"versions/web_static_$(date '+%Y%m%d%H%M%S').tgz\"")
+    local("mkdir -p versions")
+    date = datetime.now().strftime("%Y%m%d%H%M%S")
+    archived_f_path = "versions/web_static_{}.tgz".format(date)
+    t_gzip_archive = local("tar -cvzf {} web_static".format(archived_f_path))
+
+    if t_gzip_archive.succeeded:
+        return archived_f_path
     else:
         return None
 
 
 def do_deploy(archive_path):
-    put("{}".format(archive_path), "/tmp/")
-    with cd("/tmp"):
-        nm_folder = archive_path[9:-4]
-        current = "/data/web_static/current"
-        r_path = "/data/web_static/releases/{}".format(nm_folder)
-        run("mkdir -p {}".format(r_path))
-        run("sudo tar -xzf {} -C {}".format(archive_path[9:], r_path))
-        run("rm {}".format(archive_path[9:]))
-        run("sudo mv {0}/web_static/* {0}".format(r_path))
-        run("rm -rf {}".format(current))
-        run("ln -s {} {}".format(r_path, current))
-    result = run("ls {}".format(r_path))
-    if result.succeeded:
+    """
+        Distribute archive.
+    """
+    if os.path.exists(archive_path):
+        archived_file = archive_path[9:]
+        newest_version = "/data/web_static/releases/" + archived_file[:-4]
+        archived_file = "/tmp/" + archived_file
+        put(archive_path, "/tmp/")
+        run("sudo mkdir -p {}".format(newest_version))
+        run("sudo tar -xzf {} -C {}/".format(archived_file,
+                                             newest_version))
+        run("sudo rm {}".format(archived_file))
+        run("sudo mv {}/web_static/* {}".format(newest_version,
+                                                newest_version))
+        run("sudo rm -rf {}/web_static".format(newest_version))
+        run("sudo rm -rf /data/web_static/current")
+        run("sudo ln -s {} /data/web_static/current".format(newest_version))
+
+        print("New version deployed!")
         return True
-    else:
-        return False
+
+    return False
